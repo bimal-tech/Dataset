@@ -1,0 +1,37 @@
+{
+    "global": {
+        "core:datatype": "cf32",
+        "core:frequency": 1750000000.0,
+        "core:version": "0.0.1",
+        "core:author": "Bimal Adhikari, Jingxian Wu, Yanjun Pan",
+        "core:description": "Captured on 2025-10-30, device X300_1, NLoS channel IQ dataset with CFO, CSI, and IQ imbalance",
+        "extensions": [
+            "usrp"
+        ],
+        "usrp:capture_date": "2025-10-30",
+        "usrp:captured_session": "Evening Session",
+        "usrp:device_id": "X300_1",
+        "usrp:hardware": {
+            "tx_device": {
+                "model": "USRP X300",
+                "channel_condition": "NLoS",
+                "antenna": "TX/RX"
+            },
+            "rx_device": {
+                "model": "USRP B210",
+                "antenna": "RX2"
+            }
+        },
+        "usrp:external_numpy_files": {
+            "data_bytes": "data_bytes.npy",
+            "fine_cfo": "fine_cfo.npy",
+            "ffo_compensation_sig": "ffo_compensation_sig.npy",
+            "coarse_cfo": "coarse_cfo.npy",
+            "fd_channel_taps": "fd_channel_taps.npy",
+            "outlier_position": "outlier_position.npy",
+            "outlier_removed_cfo": "outlier_removed_ffo.npy",
+            "epsilon": "iq_epsilon.npy",
+            "tg_delta_phi": "iq_tan_delta_phi.npy"
+        }
+    }
+}
