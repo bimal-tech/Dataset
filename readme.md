@@ -1,10 +1,55 @@
-# SigMF RF Fingerprinting Dataset & Preprocessing Pipeline
+# RF Fingerprinting Dataset & Preprocessing Pipeline
 
-This repository holds an RF dataset recorded in the **Signal Metadata Format (SigMF)**, plus the code used to turn those recordings into training data for deep-learning-based device fingerprinting.
+This repository holds an RF dataset recorded in the **Signal Metadata Format (SigMF)**, and the code used to access those recordings for understanding signal processing flow and RF device fingerprinting.
+
+---
+## Experiment Overview
+
+### Devices
+Data was collected across seven software-defined radios (SDRs) in total:
+
+| Model | Device Identifiers |
+| :--- | :--- |
+| **USRP B210** | `B210_1`, `B210_2`, `B210_3` |
+| **USRP N210** | `N210_1` |
+| **USRP X300** | `X300_1`, `X300_2`, `X300_3` |
+
+### Instances
+Each instance from `1` to `34` corresponds to a separate recording session. Data was collected over 20 different days between October 21 and November 25, 2025, introducing natural variations across instances (such as temperature drift and minor setup modifications).
+
+### Experiment Setup & Data Collection
+The testbed was deployed inside an indoor laboratory environment designed to capture a realistic wireless channel characterized by multi-path effects. 
+
+Our data collection architecture relies on a specialized setup where the underlying signal flow and execution are built entirely using the [GNU Radio](https://www.gnuradio.org/) framework, ensuring deterministic sampling and standard-compliant signal handling. The base implementation adapts the `rx_ofdm.grc` template from the [Official GNU Radio Repository](https://github.com/gnuradio/gnuradio/tree/master/gr-digital/examples/ofdm), utilizing custom blocks to record data at every stage of the signal processing flow.
+
+The data collection pipeline was engineered to isolate and capture distinct hardware impairments unique to each device. The process follows these six steps:
+
+1. **Transmission:** Signals are generated and transmitted via the target USRP devices.
+
+2. **Reception:** Data is captured using a dedicated `USRP B210` receiver connected to the host PC via a `USB 3.0` interface.
+
+3. **Multi-Session Capture:** Recordings are spread over multiple weeks to account for environmental variations. The exact date and session details are preserved in the metadata.
+
+4. **Pre-Processing & Validation:** Frame headers and cyclic prefixes are stripped. The payload is validated via an appended 4-byte CRC checksum; frames failing the CRC check are automatically discarded.
+
+5. **IQ Imbalance Estimation:** Amplitude and phase mismatches are jointly estimated using frequency-offset-corrected data before equalization. Outliers from the IQ imbalance estimation are filtered out, and their positions are logged externally.
+
+6. **Metadata Tagging:** Captured IQ samples, carrier frequency offsets, channel state information (CSI), transmitted bytes, and estimated IQ imbalance parameters are serialized and paired with SigMF metadata files to ensure strict versioning and reproducibility.
+
+
+
+<!-- Rephrase the dl to signal processing techniques -->
+<!-- Info about the experiment setup -->
+<!-- Data collection steps at the top -->
+<!-- References to the official GNURadio website for the signal flow saying we collected data using that setup -->
+
+---
+
+<!-- 
 
 Alongside the raw I/Q captures, we extract a handful of physical-layer features per device: amplitude mismatch ($\epsilon$), phase mismatch ($\tan\Delta\phi$), and both coarse and fine frequency offset (CFO/FFO). These come from multiple hardware transceivers, so the dataset can be used to study how fingerprinting performance holds up across different radio hardware.
 
----
+--- -->
 ## Dataset Structure
 
 Recordings are organized by capture session first, then by device. A "session" here just means one sitting where we recorded from all the devices - we call these **instances**.
@@ -13,8 +58,8 @@ Recordings are organized by capture session first, then by device. A "session" h
 sigmf_dataset/
 └── [instance_id]/                                  # e.g., 1, 2, 3, 4, 5, etc.
     ├── [device_id]/                                # e.g., B210_1, N210_1, X300_1
-    │   ├── dataset_[instance]_[device].sigmf-meta  # SigMF metadata file
-    │   ├── dataset_[instance]_[device].sigmf-data  # Raw I/Q binary file
+    │   ├── dataset_[instance_id]_[device].sigmf-meta  # SigMF metadata file
+    │   ├── dataset_[instance_id]_[device].sigmf-data  # Raw I/Q binary file
     │   ├── coarse_cfo.npy                          # Coarse carrier frequency offset
     │   ├── fine_cfo.npy                             # Fine carrier frequency offset
     │   ├── ffo_compensation_sig.npy                 # FFO compensating signal
@@ -30,11 +75,11 @@ sigmf_dataset/
 
 > **Frame format:** These files contain only the payload section of each frame, with every frame consisting of 192 samples. The cyclic prefix has already been stripped, and every included frame passed CRC.
 
-#### `dataset_[instance]_[device].sigmf-meta`
+#### `dataset_[instance_id]_[device].sigmf-meta`
 
-The SigMF metadata file is stored as JSON. When we execute `sigmf.fromfile()`, this file is read first. This file describes the datatype (e.g. `cf32_le` for complex 32-bit float), center frequency, capture date, capture session, transmitter and receiver hardware information, channel condition and other capture annotations needed to correctly interpret the paired `.sigmf-data` file.   
+The SigMF metadata file is stored as JSON. When we execute `sigmf.fromfile()`, this file is read first. This file describes the datatype (e.g. `cf32` for complex 32-bit float), center frequency, capture date, capture session, transmitter and receiver hardware information, channel condition and other capture annotations needed to correctly interpret the paired `.sigmf-data` file.   
 
-#### `dataset_[instance]_[device].sigmf-data`
+#### `dataset_[instance_id]_[device].sigmf-data`
 This file consists of raw binary I/Q data. It is just a flat stream of complex samples. This file is not interpretable on its own and needs the matching `.sigmf-meta` file alongside it (same folder, same base filename) so `sigmf` knows how to decode the bytes into samples.
 
 
@@ -49,7 +94,7 @@ The signal used to compensate for fine frequency offset. This is an intermediate
 
 #### `coarse_cfo.npy`
 
-Coarse carrier frequency offset estimates, one value per frame. Since most of the offset is corrected in fine frequency offset step, it has zero value for all the devices.
+Coarse carrier frequency offset estimates, one value per frame. These are integer offset estimated using the synchronization symbol. Since most of the offset is corrected in fine frequency offset step, it has zero value for all the devices.
 
 #### `fd_channel_taps.npy`
 
@@ -74,19 +119,7 @@ A boolean mask, one entry per frame, flagging frames that were identified as out
 The fine frequency offset values with outlier frames already stripped out. This is the "clean" FFO array actually loaded into `X_device_parameter`, so its length should line up with the outlier-filtered I/Q frame count rather than the original raw frame count.
 
 
----
 
-## Devices
-
-Seven radios in total: three USRP B210s, one USRP N210, and three USRP X300s. They're labeled `B210_1`, `B210_2`, `B210_3`, `N210_1`, `X300_1`, `X300_2`, and `X300_3`.
-
----
-
-## Instances
-
-Each instance from `1` to `34` corresponds to a separate recording session. We collected data over 20 different days between October 21 and November 25, 2025, so there's some natural variation across instances (temperature drift, slightly different setups, etc.).
-
----
 
 ## Setup
 
@@ -119,161 +152,23 @@ samples = sig.read_samples()
 print(samples.shape, samples.dtype)
 
 ```
+This should output 
+
+```
+(1147968,) complex64
+
+```
+
 From there, `np.real(samples)` and `np.imag(samples)` split out the I and Q components if you need them separately. In our pipeline, each device's stream gets chopped into fixed-length frames of 192 samples (`FRAME_LEN`) before anything else happens.
 
 ---
 
 ## Full Preprocessing Pipeline
 
-`load_and_preprocess()` is the function we actually use to build a training-ready dataset. It walks through every device/instance combination, loads the I/Q data, drops flagged outlier frames, pulls in the pre-computed parameter features (epsilon, tan-delta-phi, FFO), and optionally smooths those parameters with a moving average. Everything gets normalized and labeled at the end.
+<!-- Upload the code and remove the code from the documentation and refer to filename for the description-->
+<!-- CFO/FFO Extracted from the ofdm blocks -->
 
-```python
-import numpy as np
-from pathlib import Path
-import sigmf
-from scipy.ndimage import uniform_filter1d
-from sklearn.preprocessing import StandardScaler
-
-
-def load_and_preprocess(
-    working_instances,
-    all_devices,
-    normalization=True,
-    scalers_raw_iq=None,
-    scalers_parameter=None,
-    apply_moving_average=False,
-    parameter_moving_average_window_size=50,
-):
-    X_list_raw_iq = []
-    X_list_parameter = []
-    Y_list = []
-    FRAME_LEN = 192
-
-    for device_id in all_devices:
-        for instance in working_instances:
-            # Construct path
-            base_path = Path(f"../sigmf_dataset/{instance}/{device_id}")
-            filename_base = f"dataset_{instance}_{device_id}"
-            meta_path = base_path / f"{filename_base}.sigmf-meta"
-
-            epsilon_path = base_path / f"iq_epsilon.npy"
-            tan_delta_phi_path = base_path / f"iq_tan_delta_phi.npy"
-            ffo_path = base_path / f"outlier_removed_ffo.npy"
-
-            outlier_path = base_path / f"outlier_position.npy"
-            if not meta_path.exists():
-                continue
-
-            try:
-                # Load the SigMF recording and read the complex I/Q samples
-                sig = sigmf.fromfile(str(meta_path))
-                samples = sig.read_samples()
-
-                num_stacks = len(samples) // FRAME_LEN
-                if num_stacks == 0:
-                    continue
-
-                samples = samples[: num_stacks * FRAME_LEN]
-                long_frames = samples.reshape(num_stacks, FRAME_LEN)
-
-                outliers = np.load(outlier_path)
-                cleaned_frame = np.delete(long_frames, np.where(outliers)[0], axis=0)
-
-                X_device_raw_iq = np.stack(
-                    (np.real(cleaned_frame), np.imag(cleaned_frame)), axis=1
-                )
-                y_device = np.full(len(cleaned_frame), device_id)
-
-                X_device_parameter = np.stack(
-                    (
-                        np.load(epsilon_path),
-                        np.load(tan_delta_phi_path),
-                        np.load(ffo_path),
-                    ),
-                    axis=1,
-                )
-
-                if apply_moving_average:
-                    features = uniform_filter1d(
-                        X_device_parameter,
-                        size=parameter_moving_average_window_size,
-                        axis=0,
-                    )
-                else:
-                    features = X_device_parameter
-
-                X_list_raw_iq.append(X_device_raw_iq)
-                X_list_parameter.append(features)
-                Y_list.append(y_device)
-            except Exception as e:
-                print(f"Error loading {meta_path}: {e}")
-
-    if not X_list_raw_iq:
-        print("No data found.")
-        return None, None, None
-
-    # Concatenate all loaded blocks
-    X_raw = np.concatenate(X_list_raw_iq, axis=0)
-    X_parameter = np.vstack(X_list_parameter)
-    Y_raw = np.concatenate(Y_list, axis=0)
-
-    if normalization:
-        if scalers_raw_iq:
-            X_final_raw_iq, scalers_raw_iq = global_normalize_data(
-                X_raw, scalers_raw_iq
-            )
-        else:
-            X_final_raw_iq, scalers_raw_iq = global_normalize_data(X_raw)
-
-        if scalers_parameter:
-            X_final_parameter = scalers_parameter.transform(X_parameter)
-        else:
-            scalers_parameter = StandardScaler()
-            X_final_parameter = scalers_parameter.fit_transform(X_parameter)
-    else:
-        X_final_raw_iq, scalers_raw_iq = X_raw, None
-        X_final_parameter, scalers_parameter = X_parameter, None
-
-    # Map device IDs to clean integer labels (0, 1, 2, ...)
-    unique_labels = sorted(np.unique(Y_raw))
-    label_map = {old_label: i for i, old_label in enumerate(unique_labels)}
-    Y_final = np.array([label_map[y] for y in Y_raw])
-
-    # Reshape for deep learning models: (N, Channels, Time, 1)
-    X_final_raw_iq = X_final_raw_iq[..., np.newaxis]
-    X_final_parameter = X_final_parameter[..., np.newaxis]
-
-    print(
-        f"Preprocessing complete. Shape: {X_final_raw_iq.shape}, Labels: {len(unique_labels)}"
-    )
-    print(
-        f"Preprocessing complete. Shape: {X_final_parameter.shape}, Labels: {len(unique_labels)}"
-    )
-    return X_final_raw_iq, X_final_parameter, Y_final, scalers_raw_iq, scalers_parameter
-```
-
-### The `global_normalize_data` helper
-
-This is the piece that actually standardizes the raw I/Q data. It flattens the I and Q channels across every frame in the batch, fits (or reuses) a `StandardScaler` on that flattened view, then reshapes everything back to the original `(N, channels, time)` layout.
-
-```python
-def global_normalize_data(X_data, scaler=None):
-    N, ch, t = X_data.shape
-
-    # Flatten to (N * window_size, 2) to treat I and Q as separate features
-    # but standardize them across the entire temporal dimension.
-    X_reshaped = X_data.transpose(0, 2, 1).reshape(-1, ch)
-
-    if scaler is None:
-        scaler = StandardScaler()
-        X_norm = scaler.fit_transform(X_reshaped)
-    else:
-        X_norm = scaler.transform(X_reshaped)
-
-    # Reshape back to (N, window_size, 2) -> (N, 2, window_size)
-    X_final = X_norm.reshape(N, t, ch).transpose(0, 2, 1)
-    return X_final, scaler
-```
+The [`data_preprocessing.ipynb`](https://github.com/bimal-tech/Dataset/tree/master) consists of `load_and_preprocess()` function that we actually use to build a training-ready dataset. It walks through every device/instance combination, loads the I/Q data, drops flagged outlier frames, pulls in the pre-computed parameter features (epsilon, tan-delta-phi, FFO), and optionally smooths those parameters with a moving average. Everything gets normalized and labeled at the end.
 
 
 ### Trying it out
