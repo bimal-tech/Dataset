@@ -168,7 +168,7 @@ From there, `np.real(samples)` and `np.imag(samples)` split out the I and Q comp
 <!-- Upload the code and remove the code from the documentation and refer to filename for the description-->
 <!-- CFO/FFO Extracted from the ofdm blocks -->
 
-The [`data_preprocessing.ipynb`](https://github.com/bimal-tech/Dataset/tree/master) consists of `load_and_preprocess()` function that we actually use to build a training-ready dataset. It walks through every device/instance combination, loads the I/Q data, drops flagged outlier frames, pulls in the pre-computed parameter features (epsilon, tan-delta-phi, FFO), and optionally smooths those parameters with a moving average. Everything gets normalized and labeled at the end.
+The [`data_preprocessing.ipynb`](https://github.com/bimal-tech/Dataset/blob/master/data_preprocessing.ipynb) file consists of `load_and_preprocess()` function that we actually use to build a training-ready dataset. It walks through every device/instance combination, loads the I/Q data, drops flagged outlier frames, pulls in the pre-computed parameter features (epsilon, tan-delta-phi, FFO), and optionally smooths those parameters with a moving average. Everything gets normalized and labeled at the end.
 
 
 ### Trying it out
