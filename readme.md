@@ -1,6 +1,6 @@
 # SigMF RF Fingerprinting Dataset & Preprocessing Pipeline
 
-This repo holds an RF dataset recorded in the **Signal Metadata Format (SigMF)**, plus the code used to turn those recordings into training data for deep-learning-based device fingerprinting.
+This repository holds an RF dataset recorded in the **Signal Metadata Format (SigMF)**, plus the code used to turn those recordings into training data for deep-learning-based device fingerprinting.
 
 Alongside the raw I/Q captures, we extract a handful of physical-layer features per device: amplitude mismatch ($\epsilon$), phase mismatch ($\tan\Delta\phi$), and both coarse and fine frequency offset (CFO/FFO). These come from multiple hardware transceivers, so the dataset can be used to study how fingerprinting performance holds up across different radio hardware.
 
@@ -302,6 +302,6 @@ print(Y.shape)            # (N,)            -> integer device labels
 | `X_final_raw_iq` | `(N, 2, 192, 1)` | Raw I/Q frames — channel 0 is the real part, channel 1 is the imaginary part |
 | `X_final_parameter` | `(N, 3, 1)` | The three physical-layer features: amplitude mismatch, phase mismatch, FFO |
 | `Y_final` | `(N,)` | Integer device labels, 0-indexed |
-| `scalers_raw_iq` | `StandardScaler` | Fitted I/Q scaler(s), reusable on a validation or test split |
+| `scalers_raw_iq` | `StandardScaler` | Fitted I/Q scaler, reusable on a validation or test split |
 | `scalers_parameter` | `StandardScaler` | Fitted scaler for the parameter features, also reusable |
 
