@@ -2,7 +2,7 @@
 
 This repo holds an RF dataset recorded in the **Signal Metadata Format (SigMF)**, plus the code used to turn those recordings into training data for deep-learning-based device fingerprinting.
 
-Alongside the raw I/Q captures, we extract a handful of physical-layer features per device: amplitude mismatch ($\epsilon$), phase mismatch ($\tan\Delta\phi$), and both coarse and fractional frequency offset (CFO/FFO). These come from multiple hardware transceivers, so the dataset can be used to study how fingerprinting performance holds up across different radio hardware.
+Alongside the raw I/Q captures, we extract a handful of physical-layer features per device: amplitude mismatch ($\epsilon$), phase mismatch ($\tan\Delta\phi$), and both coarse and fine frequency offset (CFO/FFO). These come from multiple hardware transceivers, so the dataset can be used to study how fingerprinting performance holds up across different radio hardware.
 
 ---
 ## Dataset Structure
@@ -25,6 +25,54 @@ sigmf_dataset/
     │   ├── outlier_position.npy                     # Boolean mask flagging outlier frames
     │   └── outlier_removed_ffo.npy                  # FFO values with outliers stripped out
 ```
+
+## More Information about the files
+
+> **Frame format:** These files contain only the payload section of each frame, with every frame consisting of 192 samples. The cyclic prefix has already been stripped, and every included frame passed CRC.
+
+#### `dataset_[instance]_[device].sigmf-meta`
+
+The SigMF metadata file is stored as JSON. When we execute `sigmf.fromfile()`, this file is read first. This file describes the datatype (e.g. `cf32_le` for complex 32-bit float), center frequency, capture date, capture session, transmitter and receiver hardware information, channel condition and other capture annotations needed to correctly interpret the paired `.sigmf-data` file.   
+
+#### `dataset_[instance]_[device].sigmf-data`
+This file consists of raw binary I/Q data. It is just a flat stream of complex samples. This file is not interpretable on its own and needs the matching `.sigmf-meta` file alongside it (same folder, same base filename) so `sigmf` knows how to decode the bytes into samples.
+
+
+#### `fine_cfo.npy`
+
+Fine carrier frequency offset estimates calculated using the Schmidl & Cox synchronization algorithm.
+
+#### `ffo_compensation_sig.npy`
+
+The signal used to compensate for fine frequency offset. This is an intermediate array from the FFO estimation and correction step. This signal can be multiplied with the raw capture to correct the fine frequency offset.
+
+
+#### `coarse_cfo.npy`
+
+Coarse carrier frequency offset estimates, one value per frame. Since most of the offset is corrected in fine frequency offset step, it has zero value for all the devices.
+
+#### `fd_channel_taps.npy`
+
+Frequency-domain channel taps used for equalization process. It contains per-frame channel estimate used to correct for multipath/channel distortion before demodulation. Not used directly in training process, but useful if you want to inspect channel conditions per device/instance.
+
+#### `data_bytes.npy`
+
+The demodulated payload bytes recovered from each frame after the receiver chain (synchronization, equalization, demodulation) runs. Useful if you want to sanity-check that a recording actually decoded correctly, rather than just looking at raw I/Q.
+
+
+#### `iq_epsilon.npy` and `iq_tan_delta_phi.npy`
+
+The extracted amplitude mismatch parameter (`iq_epsilon.npy`) and phase mismatch parameter (`iq_tan_delta_phi.npy`) per frame which tends to be a hardware-specific characteristic of a given transmitter's front end. They are RF-fingerprinting features used alongside the raw I/Q and extracted using the `data_bytes` and frequency offset compensated time-domain I/Q data. 
+
+
+#### `outlier_position.npy`
+
+A boolean mask, one entry per frame, flagging frames that were identified as outliers (based on the amplitude/phase mismatch parameters) and should be excluded. `load_and_preprocess()` uses this to drop the corresponding frames from both the raw I/Q and the parameter arrays before they're concatenated.
+
+#### `outlier_removed_ffo.npy`
+
+The fine frequency offset values with outlier frames already stripped out. This is the "clean" FFO array actually loaded into `X_device_parameter`, so its length should line up with the outlier-filtered I/Q frame count rather than the original raw frame count.
+
 
 ---
 
