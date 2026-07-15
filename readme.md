@@ -22,7 +22,7 @@ The testbed was deployed inside an indoor laboratory environment designed to cap
 
 Our data collection architecture relies on a specialized setup where the underlying signal flow and execution are built entirely using the [GNU Radio](https://www.gnuradio.org/) framework, ensuring deterministic sampling and standard-compliant signal handling. The base implementation adapts the `rx_ofdm.grc` template from the [Official GNU Radio Repository](https://github.com/gnuradio/gnuradio/tree/master/gr-digital/examples/ofdm), utilizing custom blocks to record data at every stage of the signal processing flow.
 
-The data collection pipeline was engineered to isolate and capture distinct hardware impairments unique to each device. The process follows these six steps:
+The data collection pipeline was designed to isolate and capture distinct hardware impairments unique to each device. The process follows these six steps:
 
 1. **Transmission:** Signals are generated and transmitted via the target USRP devices.
 
@@ -30,7 +30,7 @@ The data collection pipeline was engineered to isolate and capture distinct hard
 
 3. **Multi-Session Capture:** Recordings are spread over multiple weeks to account for environmental variations. The exact date and session details are preserved in the metadata.
 
-4. **Pre-Processing & Validation:** Frame headers and cyclic prefixes are stripped. The payload is validated via an appended 4-byte CRC checksum; frames failing the CRC check are automatically discarded.
+4. **Pre-Processing & Validation:** The fine frequency offset is estimated using [Schmidl & Cox OFDM synchronisation](https://wiki.gnuradio.org/index.php?title=Schmidl_%26_Cox_OFDM_synch) block of GNU Radio and recorded. The coarse frequency offset and channel state information (CSI) are estimated using [OFDM Channel Estimation](https://wiki.gnuradio.org/index.php?title=OFDM_Channel_Estimation) block and logged into a file. The frame headers and cyclic prefixes are stripped leaving only payload behind. The payload is validated via an appended 4-byte CRC checksum. The frames that fail CRC check are automatically discarded.
 
 5. **IQ Imbalance Estimation:** Amplitude and phase mismatches are jointly estimated using frequency-offset-corrected data before equalization. Outliers from the IQ imbalance estimation are filtered out, and their positions are logged externally.
 
@@ -80,7 +80,7 @@ sigmf_dataset/
 The SigMF metadata file is stored as JSON. When we execute `sigmf.fromfile()`, this file is read first. This file describes the datatype (e.g. `cf32` for complex 32-bit float), center frequency, capture date, capture session, transmitter and receiver hardware information, channel condition and other capture annotations needed to correctly interpret the paired `.sigmf-data` file.   
 
 #### `dataset_[instance_id]_[device].sigmf-data`
-This file consists of raw binary I/Q data. It is just a flat stream of complex samples. This file is not interpretable on its own and needs the matching `.sigmf-meta` file alongside it (same folder, same base filename) so `sigmf` knows how to decode the bytes into samples.
+This file consists of raw binary I/Q data. It is a flat stream of complex samples that have not gone through the frequency offset correction and equalization steps. This file is not interpretable on its own and needs the matching `.sigmf-meta` file alongside it (same folder, same base filename) so `sigmf` knows how to decode the bytes into samples.
 
 
 #### `fine_cfo.npy`
@@ -163,12 +163,13 @@ From there, `np.real(samples)` and `np.imag(samples)` split out the I and Q comp
 
 ---
 
-## Full Preprocessing Pipeline
+## Data Preprocessing Pipeline
 
 <!-- Upload the code and remove the code from the documentation and refer to filename for the description-->
 <!-- CFO/FFO Extracted from the ofdm blocks -->
+The core dataset assembly logic is handled within the code repository under [`data_preprocessing.ipynb`](https://github.com/bimal-tech/Dataset/blob/master/data_preprocessing.ipynb) file.
 
-The [`data_preprocessing.ipynb`](https://github.com/bimal-tech/Dataset/blob/master/data_preprocessing.ipynb) file consists of `load_and_preprocess()` function that we actually use to build a training-ready dataset. It walks through every device/instance combination, loads the I/Q data, drops flagged outlier frames, pulls in the pre-computed parameter features (epsilon, tan-delta-phi, FFO), and optionally smooths those parameters with a moving average. Everything gets normalized and labeled at the end.
+The contained `load_and_preprocess()` function automates dataset creation by walking through every device/instance combination, dropping flagged outlier frames, ingesting pre-computed physcial parameters, and optionally smoothing those parameters with a moving average. Everything gets normalized and labeled at the end.
 
 
 ### Trying it out
@@ -192,11 +193,11 @@ print(Y.shape)            # (N,)            -> integer device labels
 
 ### What you get back
 
-| Output | Shape | What it is |
+| Output Object | Output Shape | Description |
 |---|---|---|
-| `X_final_raw_iq` | `(N, 2, 192, 1)` | Raw I/Q frames — channel 0 is the real part, channel 1 is the imaginary part |
+| `X_final_raw_iq` | `(N, 2, 192, 1)` | Standardized  I/Q arrays where channel 0 represents In-phase(I) component and channel 1 represents Quadrature (Q) component. |
 | `X_final_parameter` | `(N, 3, 1)` | The three physical-layer features: amplitude mismatch, phase mismatch, FFO |
-| `Y_final` | `(N,)` | Integer device labels, 0-indexed |
-| `scalers_raw_iq` | `StandardScaler` | Fitted I/Q scaler, reusable on a validation or test split |
-| `scalers_parameter` | `StandardScaler` | Fitted scaler for the parameter features, also reusable |
+| `Y_final` | `(N,)` | 0-indexed integer classification targets mapped directly to the devices|
+| `scalers_raw_iq` | `StandardScaler` | The fitted standard scaler instance for raw IQ inputs, usable for test-split inference |
+| `scalers_parameter` | `StandardScaler` | The fitted standard scaler instance for hardware parameters|
 
