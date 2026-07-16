@@ -20,7 +20,7 @@ Each instance from `1` to `34` corresponds to a separate recording session. Data
 ### Experiment Setup & Data Collection
 The testbed was deployed inside an indoor laboratory environment designed to capture a realistic wireless channel characterized by multi-path effects. 
 
-Our data collection architecture relies on a specialized setup where the underlying signal flow and execution are built entirely using the [GNU Radio](https://www.gnuradio.org/) framework, ensuring deterministic sampling and standard-compliant signal handling. The base implementation adapts the `rx_ofdm.grc` template from the [Official GNU Radio Repository](https://github.com/gnuradio/gnuradio/tree/master/gr-digital/examples/ofdm), utilizing custom blocks to record data at every stage of the signal processing flow.
+Our data collection architecture relies on a specialized setup where the underlying signal flow and execution are built entirely using the [GNU Radio](https://www.gnuradio.org/) framework, ensuring standard-compliant signal handling. The base implementation adapts the `rx_ofdm.grc` template from the [Official GNU Radio Repository](https://github.com/gnuradio/gnuradio/tree/master/gr-digital/examples/ofdm), utilizing custom blocks to record data at every stage of the signal processing flow.
 
 The data collection pipeline was designed to isolate and capture distinct hardware impairments unique to each device. The process follows these six steps:
 
@@ -30,7 +30,7 @@ The data collection pipeline was designed to isolate and capture distinct hardwa
 
 3. **Multi-Session Capture:** Recordings are spread over multiple weeks to account for environmental variations. The exact date and session details are preserved in the metadata.
 
-4. **Pre-Processing & Validation:** The fine frequency offset is estimated using [Schmidl & Cox OFDM synchronisation](https://wiki.gnuradio.org/index.php?title=Schmidl_%26_Cox_OFDM_synch) block of GNU Radio and recorded. The coarse frequency offset and channel state information (CSI) are estimated using [OFDM Channel Estimation](https://wiki.gnuradio.org/index.php?title=OFDM_Channel_Estimation) block and logged into a file. The frame headers and cyclic prefixes are stripped leaving only payload behind. The payload is validated via an appended 4-byte CRC checksum. The frames that fail CRC check are automatically discarded.
+4. **Pre-Processing & Validation:** The fine frequency offset is estimated using [Schmidl & Cox OFDM synchronisation](https://wiki.gnuradio.org/index.php?title=Schmidl_%26_Cox_OFDM_synch.) block of GNU Radio and recorded. The coarse frequency offset and channel state information (CSI) are estimated using [OFDM Channel Estimation](https://wiki.gnuradio.org/index.php?title=OFDM_Channel_Estimation) block and logged into a file. The frame headers and cyclic prefixes are stripped leaving only payload behind. The payload is validated via an appended 4-byte CRC checksum. The frames that fail CRC check are automatically discarded.
 
 5. **IQ Imbalance Estimation:** IQ imbalance parameters (Amplitude mismatch and phase mismatch) are jointly estimated using frequency-offset-corrected data before equalization. Outliers from the IQ imbalance estimation are filtered out, and their positions are logged externally.
 
