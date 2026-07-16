@@ -32,7 +32,7 @@ The data collection pipeline was designed to isolate and capture distinct hardwa
 
 4. **Pre-Processing & Validation:** The fine frequency offset is estimated using [Schmidl & Cox OFDM synchronisation](https://wiki.gnuradio.org/index.php?title=Schmidl_%26_Cox_OFDM_synch) block of GNU Radio and recorded. The coarse frequency offset and channel state information (CSI) are estimated using [OFDM Channel Estimation](https://wiki.gnuradio.org/index.php?title=OFDM_Channel_Estimation) block and logged into a file. The frame headers and cyclic prefixes are stripped leaving only payload behind. The payload is validated via an appended 4-byte CRC checksum. The frames that fail CRC check are automatically discarded.
 
-5. **IQ Imbalance Estimation:** Amplitude and phase mismatches are jointly estimated using frequency-offset-corrected data before equalization. Outliers from the IQ imbalance estimation are filtered out, and their positions are logged externally.
+5. **IQ Imbalance Estimation:** IQ imbalance parameters (Amplitude mismatch and phase mismatch) are jointly estimated using frequency-offset-corrected data before equalization. Outliers from the IQ imbalance estimation are filtered out, and their positions are logged externally.
 
 6. **Metadata Tagging:** Captured IQ samples, carrier frequency offsets, channel state information (CSI), transmitted bytes, and estimated IQ imbalance parameters are serialized and paired with SigMF metadata files to ensure strict versioning and reproducibility.
 
@@ -56,19 +56,19 @@ Recordings are organized by capture session first, then by device. A "session" h
 
 ```text
 sigmf_dataset/
-└── [instance_id]/                                  # e.g., 1, 2, 3, 4, 5, etc.
-    ├── [device_id]/                                # e.g., B210_1, N210_1, X300_1
-    │   ├── dataset_[instance_id]_[device].sigmf-meta  # SigMF metadata file
-    │   ├── dataset_[instance_id]_[device].sigmf-data  # Raw I/Q binary file
-    │   ├── coarse_cfo.npy                          # Coarse carrier frequency offset
-    │   ├── fine_cfo.npy                             # Fine carrier frequency offset
-    │   ├── ffo_compensation_sig.npy                 # FFO compensating signal
-    │   ├── data_bytes.npy                           # Demodulated data bytes
-    │   ├── fd_channel_taps.npy                      # Frequency-domain channel taps used for equalization
-    │   ├── iq_epsilon.npy                           # Extracted amplitude mismatch parameter
-    │   ├── iq_tan_delta_phi.npy                     # Extracted phase mismatch parameter
-    │   ├── outlier_position.npy                     # Boolean mask flagging outlier frames
-    │   └── outlier_removed_ffo.npy                  # FFO values with outliers stripped out
+└── [instance_id]/                                      # e.g., 1, 2, 3, 4, 5, etc.
+    ├── [device_id]/                                    # e.g., B210_1, N210_1, X300_1
+    │   ├── dataset_[instance_id]_[device].sigmf-meta   # SigMF metadata file
+    │   ├── dataset_[instance_id]_[device].sigmf-data   # Raw I/Q binary file
+    │   ├── coarse_cfo.npy                              # Coarse carrier frequency offset
+    │   ├── fine_cfo.npy                                # Fine carrier frequency offset
+    │   ├── ffo_compensation_sig.npy                    # FFO compensating signal
+    │   ├── data_bytes.npy                              # Demodulated data bytes
+    │   ├── fd_channel_taps.npy                         # Frequency-domain channel taps used for equalization
+    │   ├── iq_epsilon.npy                              # Extracted amplitude mismatch parameter
+    │   ├── iq_tan_delta_phi.npy                        # Extracted phase mismatch parameter
+    │   ├── outlier_position.npy                        # Boolean mask flagging outlier frames
+    │   └── outlier_removed_ffo.npy                     # FFO values with outliers stripped out
 ```
 
 ## More Information about the files
@@ -119,7 +119,7 @@ A boolean mask, one entry per frame, flagging frames that were identified as out
 The fine frequency offset values with outlier frames already stripped out. This is the "clean" FFO array actually loaded into `X_device_parameter`, so its length should line up with the outlier-filtered I/Q frame count rather than the original raw frame count.
 
 
-
+---
 
 ## Setup
 
